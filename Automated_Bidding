@@ -1,0 +1,36 @@
+
+
+----------------  1. Automated Bidding -----------------------------
+
+
+---------------- final_optimized_code -----------------------
+
+SELECT COUNT(DISTINCT show_viewer_events.viewer_id) AS total_viewers,
+       COUNT(DISTINCT bidders.bidder_id)            AS total_bidders,
+       COUNT(DISTINCT buyers.buyer_id)              AS total_buyers
+FROM analytics.dw_show_viewer_events_cs AS show_viewer_events
+         LEFT JOIN analytics.dw_shows AS dw_shows
+                   ON show_viewer_events.show_id = dw_shows.show_id
+         LEFT JOIN (SELECT DISTINCT dw_auction_bids_cs.bidder_id
+                    FROM analytics.dw_auction_bids_cs
+                             INNER JOIN analytics.dw_auctions_cs
+                                        ON dw_auctions_cs.auction_id = dw_auction_bids_cs.auction_id
+                             INNER JOIN analytics.dw_shows
+                                        ON dw_shows.show_id = dw_auctions_cs.show_id
+                    WHERE DATE(dw_shows.start_at) >= '2024-11-01'
+                      AND DATE(dw_shows.start_at) < '2024-12-01') AS bidders
+                   ON show_viewer_events.viewer_id = bidders.bidder_id
+         LEFT JOIN (SELECT DISTINCT buyer_id
+                    FROM analytics.dw_orders
+                             INNER JOIN analytics.dw_shows
+                                        ON dw_orders.show_id = dw_shows.show_id
+                    WHERE DATE(dw_shows.start_at) >= '2024-11-01'
+                      AND DATE(dw_shows.start_at) < '2024-12-01') AS buyers
+                   ON show_viewer_events.viewer_id = buyers.buyer_id
+WHERE DATE(dw_shows.start_at) >= '2024-11-01'
+  AND DATE(dw_shows.start_at) < '2024-12-01'
+  AND show_viewer_events.viewer_id != show_viewer_events.host_id
+  AND (show_viewer_events.show_listing_detail_clicks > 0 OR show_viewer_events.show_listing_likes_clicks>0
+      OR show_viewer_events.show_feature_listing_clicks>0 ) ;
+
+-- change the conditions for Listing Clickers (from feature listing or listing tray, or listing tray like)
